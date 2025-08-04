@@ -152,6 +152,15 @@
         #hint-button {
             display: none; /* Ẩn nút gợi ý mặc định */
         }
+
+        #hint-display {
+            display: none; /* Ẩn gợi ý mặc định */
+            margin-top: 1rem;
+            font-style: italic;
+            color: #FFC107;
+            font-weight: bold;
+            min-height: 2rem;
+        }
         
         #end-screen h2 {
             font-size: 3rem;
@@ -195,6 +204,7 @@
             Điểm: <span id="score">0</span> / <span id="total-questions">0</span>
         </div>
         <div id="ipa-display"></div>
+        <div id="hint-display"></div> <!-- Phần tử mới để hiển thị gợi ý -->
         <input type="text" id="answer-input" placeholder="Viết lại câu ở đây" />
         <div id="feedback"></div>
         <button id="check-button" class="button">Kiểm tra</button>
@@ -269,6 +279,7 @@
         let incorrectAttempts = 0;
         let shuffledSentences = [];
         let isGameOver = false;
+        let hintUsed = false; // Thêm biến cờ để theo dõi việc sử dụng gợi ý
 
         // --- DOM Elements ---
         const splashScreen = document.getElementById('splash-screen');
@@ -281,14 +292,15 @@
         const ipaDisplay = document.getElementById('ipa-display');
         const answerInput = document.getElementById('answer-input');
         const checkButton = document.getElementById('check-button');
-        const hintButton = document.getElementById('hint-button'); // Nút gợi ý
+        const hintButton = document.getElementById('hint-button');
         const feedbackSplash = document.getElementById('feedback-splash');
         const feedback = document.getElementById('feedback');
         const scoreDisplay = document.getElementById('score');
         const totalQuestionsDisplay = document.getElementById('total-questions');
         const endMessage = document.getElementById('end-message');
         const finalScore = document.getElementById('final-score');
-        
+        const hintDisplay = document.getElementById('hint-display');
+
         // --- Event Listeners ---
         startButton.addEventListener('click', startGame);
         resetButton.addEventListener('click', () => {
@@ -298,11 +310,14 @@
         });
         playAgainButton.addEventListener('click', startGame);
         checkButton.addEventListener('click', checkAnswer);
-        hintButton.addEventListener('click', giveHint); // Sự kiện cho nút gợi ý
+        hintButton.addEventListener('click', giveHint);
         answerInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 checkAnswer();
             }
+        });
+        answerInput.addEventListener('focus', () => {
+            hintDisplay.style.display = 'none'; // Ẩn gợi ý khi người dùng bắt đầu nhập
         });
         
         // --- Game Logic Functions ---
@@ -342,7 +357,8 @@
             clearFeedback();
             answerInput.value = '';
             answerInput.focus();
-            hintButton.style.display = 'none'; // Ẩn nút gợi ý khi chuyển câu hỏi mới
+            hintButton.style.display = 'none';
+            hintUsed = false; // Đặt lại cờ gợi ý cho câu hỏi mới
 
             if (currentQuestionIndex < shuffledSentences.length) {
                 const questionData = shuffledSentences[currentQuestionIndex];
@@ -360,19 +376,20 @@
             const correctSentence = shuffledSentences[currentQuestionIndex].fullSentence.toLowerCase().replace(/[.,!?;:]/g, '');
 
             if (userInput === correctSentence) {
-                score++;
+                if (!hintUsed) {
+                    score++;
+                }
                 updateScore();
                 feedback.textContent = 'Chính xác!';
                 feedback.style.color = '#28a745';
                 
-                // Xử lý hiệu ứng đọc và nhấp nháy
                 handleCorrectAnswer();
             } else {
                 incorrectAttempts++;
                 if (incorrectAttempts >= 2) {
                     feedback.textContent = `Sai rồi! Thử lại (${incorrectAttempts}/2). Nhấn Gợi Ý nếu bạn không biết.`;
                     feedback.style.color = '#dc3545';
-                    hintButton.style.display = 'block'; // Hiển thị nút gợi ý
+                    hintButton.style.display = 'block';
                 } else {
                     feedback.textContent = `Sai rồi! Thử lại (${incorrectAttempts}/2)`;
                     feedback.style.color = '#dc3545';
@@ -402,29 +419,32 @@
 
         function giveHint() {
             const correctSentence = shuffledSentences[currentQuestionIndex].fullSentence;
-            feedback.textContent = `Đáp án đúng là: ${correctSentence}.`;
-            feedback.style.color = '#FFC107'; // Màu vàng cho gợi ý
-            answerInput.value = correctSentence;
+            hintDisplay.textContent = `Gợi ý: ${correctSentence}`;
+            hintDisplay.style.display = 'block';
+            
+            hintUsed = true; // Đặt cờ gợi ý đã được sử dụng
             
             setTimeout(() => {
-                currentQuestionIndex++;
-                nextQuestion();
-            }, 2000);
+                hintButton.style.display = 'none';
+            }, 500); // Ẩn nút hint ngay sau khi nhấn
         }
         
         function playAudio(text) {
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US'; // Set language to English for pronunciation
+                utterance.lang = 'en-US';
                 window.speechSynthesis.speak(utterance);
             } else {
-                console.log("Web Speech API is not supported in this browser.");
+                feedback.textContent = 'Trình duyệt của bạn không hỗ trợ phát âm.';
+                feedback.style.color = '#dc3545';
             }
         }
 
         function clearFeedback() {
             feedback.textContent = '';
             feedbackSplash.textContent = '';
+            hintDisplay.textContent = '';
+            hintDisplay.style.display = 'none';
         }
 
         function updateScore() {
